@@ -1,0 +1,105 @@
+import csv
+import datetime
+# from multiprocessing.pool import ThreadPool
+import threading
+import queue
+import time
+import multiprocessing
+
+THREAD_LEN = 4
+que = queue.Queue()
+
+def day_checker(kospi_tickers, index, num_of_stock_per_thread, startdate, enddate):
+    prices = []
+    count = index * num_of_stock_per_thread
+    thread_count = count + num_of_stock_per_thread
+    while count < thread_count:
+        kospi_price = []
+        with open('./kospi200/' + kospi_tickers[count] + ".csv", 'r') as in_file:
+            reader = csv.reader(in_file, delimiter=",")
+            for price in reader:
+                date = datetime.datetime.strptime(price[0], "%Y-%m-%d")
+                if date >= startdate and date <= enddate:
+                    kospi_price.append(float(price[1]))
+        # print("index:", index, "count", count, "kospi_price", kospi_price )
+        prices.append(len(kospi_price))
+        count += 1
+    que.put(prices)
+
+def price_checker(kospi_tickers, index, startdate, enddate):
+    prices = []
+    with open('./kospi200/' + kospi_tickers[index] + ".csv", 'r') as in_file:
+        reader = csv.reader(in_file, delimiter=",")
+        for price in reader:
+            date = datetime.datetime.strptime(price[0], "%Y-%m-%d")
+            if date >= startdate and date <= enddate:
+                prices.append(float(price[1]))
+    que.put(prices)
+
+
+def days(kospi_tickers, startdate, enddate):
+    num_of_stock = len(kospi_tickers)
+    num_of_stock_per_thread = int(num_of_stock / THREAD_LEN)
+    day = []
+    threads = []
+
+    for index in range(THREAD_LEN):
+        process = threading.Thread(target=day_checker, args=(kospi_tickers, index, num_of_stock_per_thread, startdate, enddate))
+
+        threads.append(process)
+
+    for process in threads:
+        process.start()
+        time.sleep(1)
+
+    for process in threads:
+        process.join()
+
+    while not que.empty():
+        for element in que.get():
+            day.append(element)
+
+    print("day:", day)
+    print("day length:", len(day))
+
+    return day
+
+
+def stock_prices(days, kospi_tickers, startdate, enddate):
+    all_prices = []
+    num_of_stock = len(kospi_tickers)
+    for index in range(len(kospi_tickers)):
+        if index < num_of_stock:
+            # pool = ThreadPool(processes=16)
+            # async_result = pool.apply_async(price_checker, (kospi_tickers, index, startdate, enddate))
+            # all_prices.append(async_result.get())
+            # pool.close()
+            # pool.join()
+
+            que = queue.Queue()
+            threads = []
+            for count in range(THREAD_LEN):
+                process = threading.Thread(target=price_checker, args=(kospi_tickers, index, startdate, enddate))
+                process.start()
+                threads.append(process)
+
+            for process in threads:
+                process.join()
+
+            while not que.empty():
+                all_prices.append(que.get())
+
+    stock_price = []
+    last_day = 1
+    for index in range(len(kospi_tickers)):
+        prices = []
+        if days[index] != 0:
+            last_day = days[index]
+            for day in range(days[index]):
+                prices.append(all_prices[index][day])
+        else:
+            for day in range(last_day):
+                prices.append(0)
+        stock_price.append(prices)
+    print(stock_price)
+    return stock_price

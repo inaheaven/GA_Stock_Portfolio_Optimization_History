@@ -1,0 +1,43 @@
+    # threads = []
+    # day = []
+    # num_of_stock = len(kospi_tickers)
+    # for index in range(len(kospi_tickers)):
+    #     if index < num_of_stock:
+    #             t = Thread(target=day_checker, args=(kospi_tickers, index, startdate, enddate))
+    #             threads.append(t)
+    # for t in threads:
+    #     t.start()
+    # for t in threads:
+    #     t.join()
+    #
+    # return day
+    day = []
+    num_of_stock = len(kospi_tickers)
+    for index in range(len(kospi_tickers)):
+        if index < num_of_stock:
+            pool = ThreadPool(processes=8)
+            async_result = pool.apply_async(day_checker, (kospi_tickers, index, startdate, enddate))
+            day.append(async_result.get())
+    return day
+
+-------------------------------------------------------------------------------------------------------------
+
+    for chromosome in pop.get_chromosomes():
+        chromo_row = []
+        chromo_title = "chromosome #" + str(index)
+        chromo_fitness_title = "| Fitness"
+        # chromo_fitness = chromosome.get_fitness()
+        t = Thread(target=chromosome.get_fitness)
+        threads.append(t)
+        chromo_row.append(chromo_title)
+        for num in range(num_of_stocks):
+            chromo_row.append(chromosome.get_genes()[num])
+        chromo_row.append(chromo_fitness_title)
+        # chromo_row.append(chromo_fitness)
+        chromo_rows.append(chromo_row)
+        index += 1
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
